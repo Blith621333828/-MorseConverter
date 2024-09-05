@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="MorseConverter to narzędzie do tłumaczenia polskich zdań na alfabet Morse'a i odwrotnie. Łatwy w użyciu konwerter kodów Morse'a.">
+<meta name="theme-color" content="#282c34"> <!-- Kolor tła paska adresu -->
+<title>MorseConverter</title>
+<link rel="icon" href="edit.png" type="image/png">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #282c34;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden; /* Ukrycie przewijania strony */
+        }
+        input, button, .result {
+            padding: 15px;
+            font-size: 18px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 25px;
+            outline: none;
+            transition: 0.3s ease;
+        }
+        input {
+            width: 300px;
+            color: #bbb; /* Kolor tekstu w polu input */
+        }
+        input::placeholder {
+            color: #bbb; /* Placeholder taki sam jak w polu wynikowym */
+        }
+        input:focus {
+            box-shadow: 0 0 10px #61dafb;
+        }
+        button {
+            background-color: #4267B2; /* Ciemnoniebieski kolor przycisku */
+            color: #ffffff;
+            cursor: pointer;
+            height: 60px; /* Ustalona wysokość przycisku */
+        }
+        button:hover {
+            background-color: #365899;
+        }
+        .result {
+            background-color: #ffffff;
+            color: #bbb; /* Kolor tekstu taki sam jak placeholder */
+            width: 300px; /* Skrócone pole wynikowe */
+            word-wrap: break-word;
+            border: 2px solid #ddd;
+            min-height: 60px; /* Ustalona minimalna wysokość */
+        }
+        .result-text {
+            color: #bbb; /* Ten sam kolor co placeholder */
+        }
+        .button-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .switch-button {
+            background-color: #4267B2; /* Ciemnoniebieski kolor przycisku */
+            color: #ffffff;
+            font-size: 24px;
+            height: 60px; /* Ustalona wysokość przycisku */
+            padding: 0 20px;
+            border-radius: 25px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #ffffff; /* Nagłówek biały */
+        }
+        .sidebar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #333;
+            color: #ffffff;
+            padding: 10px;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.3);
+            transform: translateY(100%);
+            transition: transform 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sidebar.show {
+            transform: translateY(0);
+        }
+        .sidebar img {
+            height: 40px;
+            margin-right: 10px;
+        }
+        .sidebar a {
+            color: #1e90ff; /* Kolor niebieski dla linków */
+            text-decoration: none;
+        }
+        .sidebar a:hover {
+            text-decoration: underline;
+        }
+        .close-button {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #ffffff;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tłumacz polskich zdań na alfabet Morse'a</h1>
+    
+    <div class="button-container">
+        <button class="switch-button" onclick="translateToMorse()">Tłumacz</button>
+        <button class="switch-button" onclick="switchMode()">⇅</button>
+    </div>
+
+    <input type="text" id="inputText" placeholder="Wpisz zdanie do przetłumaczenia" oninput="clearPlaceholder()" />
+
+    <div class="result" id="result">
+        <span id="placeholderText" class="result-text">Tu pojawi się wygenerowany tekst</span>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <img src="blith.png" alt="Blith Logo">
+        <span>Hej, jestem Blith chciałbym cię zaprosić na moją nową stronę. <a href="https://blith.buoobot.ovh/" target="_blank">Kliknij tutaj</a></span>
+        <button class="close-button" onclick="closeSidebar()">×</button>
+    </div>
+
+    <script>
+        const morseCode = {
+            'a': '.-',    'ą': '.-.-', 'b': '-...', 'c': '-.-.', 'ć': '-.-..',
+            'd': '-..',   'e': '.',    'ę': '..-..', 'f': '..-.', 'g': '--.',
+            'h': '....',  'i': '..',   'j': '.---',  'k': '-.-',  'l': '.-..',
+            'ł': '.-..-', 'm': '--',   'n': '-.',    'ń': '--.--','o': '---',
+            'ó': '---.',  'p': '.--.', 'q': '--.-',  'r': '.-.',  's': '...',
+            'ś': '...-...', 't': '-',  'u': '..-',   'v': '...-', 'w': '.--',
+            'x': '-..-',  'y': '-.--', 'z': '--..',  'ź': '--..-.','ż': '--..-',
+            '1': '.----', '2': '..---','3': '...--', '4': '....-', '5': '.....',
+            '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----',
+            ' ': ' '
+        };
+
+        let isMorseMode = true;  // Zmienna kontrolująca tryb (na Morse'a czy z Morse'a)
+
+        // Funkcja tłumacząca tekst na Morse'a
+        function translateToMorse() {
+            const inputText = document.getElementById('inputText').value.toLowerCase();
+            let translatedText = '';
+
+            if (isMorseMode) {
+                // Tłumaczenie na alfabet Morse'a
+                for (let i = 0; i < inputText.length; i++) {
+                    const letter = inputText[i];
+                    translatedText += morseCode[letter] ? morseCode[letter] + ' ' : '';
+                }
+            } else {
+                // Tłumaczenie z Morse'a na tekst
+                const morseWords = inputText.trim().split('   '); // Oddzielenie słów w Morse'ie (3 spacje)
+                morseWords.forEach(morseWord => {
+                    const morseLetters = morseWord.split(' '); // Oddzielenie znaków (1 spacja)
+                    morseLetters.forEach(morseLetter => {
+                        const letter = Object.keys(morseCode).find(key => morseCode[key] === morseLetter);
+                        translatedText += letter ? letter : '';
+                    });
+                    translatedText += ' ';
+                });
+            }
+
+            // Wyświetlenie przetłumaczonego tekstu
+            if (translatedText) {
+                document.getElementById('result').innerHTML = translatedText;
+            } else {
+                document.getElementById('result').innerHTML = '<span id="placeholderText" class="result-text">Tu pojawi się wygenerowany tekst</span>';
+            }
+        }
+
+        // Funkcja czyszcząca placeholder w momencie wprowadzenia tekstu
+        function clearPlaceholder() {
+            const inputText = document.getElementById('inputText').value;
+            if (inputText.length > 0) {
+                document.getElementById('result').innerHTML = '';
+            } else {
+                document.getElementById('result').innerHTML = '<span id="placeholderText" class="result-text">Tu pojawi się wygenerowany tekst</span>';
+            }
+        }
+
+        // Funkcja zamieniająca tryb działania (z Morse'a na tekst i odwrotnie)
+        function switchMode() {
+            isMorseMode = !isMorseMode;
+            const inputText = document.getElementById('inputText');
+            const result = document.getElementById('result');
+
+            if (isMorseMode) {
+                inputText.placeholder = "Wpisz zdanie do przetłumaczenia";
+                document.querySelector('h1').textContent = "Tłumacz polskich zdań na alfabet Morse'a";
+                result.innerHTML = '<span id="placeholderText" class="result-text">Tu pojawi się wygenerowany tekst</span>';
+            } else {
+                inputText.placeholder = "Wpisz kod Morse'a do odczytania";
+                document.querySelector('h1').textContent = "Odczytaj kod Morse'a";
+                result.innerHTML = '<span id="placeholderText" class="result-text">Tu pojawi się odczytany tekst</span>';
+            }
+        }
+
+        // Funkcja do otwierania paska bocznego
+        window.onload = function() {
+            setTimeout(() => {
+                document.getElementById('sidebar').classList.add('show');
+            }, 1000); // Opóźnienie 1 sekundy przed pokazaniem paska
+        };
+
+        // Funkcja do zamykania paska bocznego
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('show');
+        }
+    </script>
+</body>
+</html>
